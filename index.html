@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interest Rate Calculator</title>
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts - Inter for consistent typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN for charting -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        canvas {
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-inter">
+    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-5xl">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">Interest Rate Calculator</h1>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div class="flex flex-col">
+                <label for="initialInvestment" class="text-gray-700 text-sm font-medium mb-1">Initial Investment (€)</label>
+                <input type="number" id="initialInvestment" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="1000" min="0" />
+            </div>
+
+            <div class="flex flex-col">
+                <label for="interestRate" class="text-gray-700 text-sm font-medium mb-1">Yearly Interest Rate (%)</label>
+                <input type="number" id="interestRate" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="10" min="0" step="0.1" />
+            </div>
+
+            <div class="flex flex-col">
+                <label for="interestPeriod" class="text-gray-700 text-sm font-medium mb-1">Interest Compounding Period</label>
+                <select id="interestPeriod" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    <option value="yearly">Yearly</option>
+                    <option value="monthly" selected>Monthly</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="flex flex-col">
+                <label for="additionalInvestment" class="text-gray-700 text-sm font-medium mb-1">Additional Investment (€)</label>
+                <input type="number" id="additionalInvestment" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="100" min="0" />
+            </div>
+
+            <div class="flex flex-col">
+                <label for="additionalPeriod" class="text-gray-700 text-sm font-medium mb-1">Additional Investment Period</label>
+                <select id="additionalPeriod" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    <option value="monthly" selected>Monthly</option>
+                    <option value="yearly">Yearly</option>
+                </select>
+            </div>
+
+            <div class="flex flex-col">
+                <label for="investmentDuration" class="text-gray-700 text-sm font-medium mb-1">Investment Duration (Years)</label>
+                <input type="number" id="investmentDuration" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="10" min="1" />
+            </div>
+        </div>
+
+        <div class="text-center mb-8">
+            <h2 class="text-2xl font-semibold text-gray-800">Final Amount: <span id="finalAmount" class="text-blue-600">€0</span></h2>
+        </div>
+
+        <div class="h-80 w-full flex justify-center items-center">
+            <canvas id="interestChart"></canvas>
+        </div>
+
+        <div class="mt-8 h-96 w-full">
+            <canvas id="lineChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const initialInvestmentInput = document.getElementById('initialInvestment');
+        const additionalInvestmentInput = document.getElementById('additionalInvestment');
+        const additionalPeriodSelect = document.getElementById('additionalPeriod');
+        const interestRateInput = document.getElementById('interestRate');
+        const interestPeriodSelect = document.getElementById('interestPeriod');
+        const investmentDurationInput = document.getElementById('investmentDuration');
+        const finalAmountSpan = document.getElementById('finalAmount');
+        const chartCanvas = document.getElementById('interestChart');
+
+        let interestChart;
+        let lineChart;
+
+        const formatNumber = (num) => Number(num).toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+        const calculateInterest = () => {
+            let P = parseFloat(initialInvestmentInput.value);
+            let PMT_user = parseFloat(additionalInvestmentInput.value);
+            let r_annual = parseFloat(interestRateInput.value) / 100;
+            let t = parseFloat(investmentDurationInput.value);
+            let additionalPeriod = additionalPeriodSelect.value;
+            let interestPeriod = interestPeriodSelect.value;
+
+            if (isNaN(P) || isNaN(PMT_user) || isNaN(r_annual) || isNaN(t) || P < 0 || PMT_user < 0 || r_annual < 0 || t <= 0) {
+                finalAmountSpan.textContent = '€0';
+                updateChart([], 0, 0, 0);
+                return;
+            }
+
+            let n_compounding = interestPeriod === 'monthly' ? 12 : 1;
+            let r_per_period = Math.pow(1 + r_annual, 1 / n_compounding);
+
+            let futureValueOfPrincipal = P * Math.pow(r_per_period, n_compounding * t);
+
+            let futureValueOfPayments = 0;
+            let PMT_effective = PMT_user;
+
+            if (PMT_user > 0) {
+                if (additionalPeriod === 'monthly') {
+                    if (interestPeriod === 'yearly') {
+                        PMT_effective = PMT_user;
+                    }
+                }
+
+                if (r_per_period === 1) {
+                    futureValueOfPayments = PMT_effective * n_compounding * t;
+                } else if (additionalPeriod === 'yearly' && interestPeriod === 'monthly') {
+                    futureValueOfPayments = futureValueAnnualContributions(PMT_effective, r_per_period - 1, t);
+                } else if (additionalPeriod === 'monthly' && interestPeriod === 'yearly') {
+                    futureValueOfPayments = calculateAnnualCompoundWithMonthlyInvestments(PMT_effective, r_per_period - 1, t);
+                } else {
+                    futureValueOfPayments = PMT_effective * ((Math.pow(r_per_period, n_compounding * t) - 1) / (r_per_period - 1));
+                }
+            }
+
+            function futureValueAnnualContributions(P, r, years) {
+                const monthsPerYear = 12;
+                let fv = 0;
+                for (let k = 0; k < years; k++) {
+                    const monthsToGrow = monthsPerYear * (years - k - 1);
+                    fv += P * Math.pow(1 + r, monthsToGrow);
+                }
+                return fv;
+            }
+
+            function calculateAnnualCompoundWithMonthlyInvestments(pmt, rate, years) {
+                let total = 0;
+                for (let i = 0; i < years; i++) {
+                    total += pmt * 12;
+                    total *= (1 + rate);
+                }
+                return total;
+            }
+
+
+            let totalFutureValue = futureValueOfPrincipal + futureValueOfPayments;
+            let totalInitialInvestment = P;
+            let totalAdditionalInvestments = PMT_user * (additionalPeriod === 'monthly' ? 12 : 1) * t;
+            let totalInterestEarned = totalFutureValue - totalInitialInvestment - totalAdditionalInvestments;
+            if (totalInterestEarned < 0) totalInterestEarned = 0;
+
+            finalAmountSpan.textContent = `€${formatNumber(totalFutureValue)}`;
+            updateChart([totalInitialInvestment, totalAdditionalInvestments, totalInterestEarned]);
+
+            // Monthly line chart data generation
+            let principalGrowth = [];
+            let additionalContributions = [];
+            let totalPortfolio = [];
+            let labels = [];
+
+            let monthlyRate = Math.pow(1 + r_annual, 1 / 12);
+            let P_current = P;
+            let totalAdditional = 0;
+
+            for (let month = 0; month < t * 12; month++) {
+                P_current *= monthlyRate;
+
+                if ((additionalPeriod === 'yearly') && (interestPeriod === 'monthly')) {
+                    if ((month + 1) % 12 === 0 && month > 0) {
+                        totalAdditional = totalAdditional * r_per_period + PMT_user;
+                    } else {
+                    totalAdditional = totalAdditional * r_per_period;
+                    }
+                } else if ((additionalPeriod === 'monthly') && (interestPeriod === 'yearly')) {
+                    if ((month + 1) % 12 === 0 && month > 0) {
+                        totalAdditional = (totalAdditional + PMT_user) * r_per_period;
+                    } else {
+                    totalAdditional = totalAdditional + PMT_user;
+                    }
+                } else if ((additionalPeriod === 'monthly') && (interestPeriod === 'monthly')) {
+                    totalAdditional = totalAdditional * r_per_period + PMT_user;
+                } else if ((additionalPeriod === 'yearly') && (interestPeriod === 'yearly')) {
+                    if ((month + 1) % 12 === 0 && month > 0) {
+                        totalAdditional = totalAdditional * r_per_period + PMT_user;
+                    } else {
+                    totalAdditional = totalAdditional;
+                    }
+                }
+
+                let total = P_current + totalAdditional;
+                principalGrowth.push(P_current);
+                additionalContributions.push(totalAdditional);
+                totalPortfolio.push(total);
+                labels.push(`Month ${month + 1}`);
+            }
+
+            updateLineChart(labels, principalGrowth, additionalContributions, totalPortfolio);
+        };
+
+        const updateChart = (data) => {
+            const chartLabels = ['Initial Investment', 'Additional Investments', 'Interest Earned'];
+            const chartColors = ['#4CAF50', '#2196F3', '#FFC107'];
+
+            const filteredData = [], filteredLabels = [], filteredColors = [];
+            data.forEach((value, index) => {
+                if (value > 0) {
+                    filteredData.push(value);
+                    filteredLabels.push(chartLabels[index]);
+                    filteredColors.push(chartColors[index]);
+                }
+            });
+
+            if (interestChart) {
+                interestChart.data.labels = filteredLabels;
+                interestChart.data.datasets[0].data = filteredData;
+                interestChart.data.datasets[0].backgroundColor = filteredColors;
+                interestChart.update();
+            } else {
+                const ctx = chartCanvas.getContext('2d');
+                interestChart = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: filteredLabels,
+                        datasets: [{ data: filteredData, backgroundColor: filteredColors, hoverOffset: 4 }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'top' },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        if (label) label += ': ';
+                                        if (context.parsed !== null) label += `€${formatNumber(context.parsed)}`;
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        };
+
+        const updateLineChart = (labels, principalSeries, additionalSeries, totalSeries) => {
+            const ctx = document.getElementById('lineChart').getContext('2d');
+            if (lineChart) {
+                lineChart.data.labels = labels;
+                lineChart.data.datasets[0].data = principalSeries;
+                lineChart.data.datasets[1].data = additionalSeries;
+                lineChart.data.datasets[2].data = totalSeries;
+                lineChart.update();
+            } else {
+                lineChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            { label: 'Initial Investment Value', data: principalSeries, borderColor: '#4CAF50', fill: false, tension: 0.1 },
+                            { label: 'Additional Contributions', data: additionalSeries, borderColor: '#2196F3', fill: false, tension: 0.1 },
+                            { label: 'Total Value', data: totalSeries, borderColor: '#FFC107', fill: false, tension: 0.1 }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.dataset.label}: €${formatNumber(context.parsed.y)}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: { beginAtZero: true, title: { display: true, text: '€ Value' } },
+                            x: { title: { display: true, text: 'Months' } }
+                        }
+                    }
+                });
+            }
+        };
+
+        initialInvestmentInput.addEventListener('input', calculateInterest);
+        additionalInvestmentInput.addEventListener('input', calculateInterest);
+        additionalPeriodSelect.addEventListener('change', calculateInterest);
+        interestRateInput.addEventListener('input', calculateInterest);
+        interestPeriodSelect.addEventListener('change', calculateInterest);
+        investmentDurationInput.addEventListener('input', calculateInterest);
+
+        window.onload = calculateInterest;
+    </script>
+</body>
+</html>

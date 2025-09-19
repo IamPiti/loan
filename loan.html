@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loan Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        canvas {
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-inter">
+    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-5xl">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">Loan Calculator</h1>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div class="flex flex-col">
+                <label for="loanAmount" class="text-gray-700 text-sm font-medium mb-1">Loan Amount (€)</label>
+                <input type="number" id="loanAmount" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="10000" min="0" />
+            </div>
+
+            <div class="flex flex-col">
+                <label for="annualInterestRate" class="text-gray-700 text-sm font-medium mb-1">Annual Interest Rate (%)</label>
+                <input type="number" id="annualInterestRate" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="5" min="0" step="0.1" />
+            </div>
+
+            <div class="flex flex-col">
+                <label for="loanDuration" class="text-gray-700 text-sm font-medium mb-1">Loan Duration (Years)</label>
+                <input type="number" id="loanDuration" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="5" min="1" />
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div class="flex flex-col">
+                <label for="loanPaymentPeriod" class="text-gray-700 text-sm font-medium mb-1">Loan Payments Period</label>
+                <select id="loanPaymentPeriod" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    <option value="monthly" selected>Monthly</option>
+                    <option value="yearly">Yearly</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="text-center mb-8">
+            <h2 class="text-2xl font-semibold text-gray-800">Monthly Payment: <span id="monthlyPayment" class="text-blue-600">€0</span></h2>
+            <h2 class="text-2xl font-semibold text-gray-800">Total Payments: <span id="totalPayments" class="text-blue-600">€0</span></h2>
+            <h2 class="text-2xl font-semibold text-gray-800">Total Interest Paid: <span id="totalInterestPaid" class="text-blue-600">€0</span></h2>
+        </div>
+
+        <div class="h-80 w-full flex justify-center items-center">
+            <canvas id="loanSummaryChart"></canvas>
+        </div>
+
+        <div class="mt-8 h-96 w-full">
+            <canvas id="amortizationChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const loanAmountInput = document.getElementById('loanAmount');
+        const annualInterestRateInput = document.getElementById('annualInterestRate');
+        const loanDurationInput = document.getElementById('loanDuration');
+        const loanPaymentPeriodSelect = document.getElementById('loanPaymentPeriod');
+        const monthlyPaymentSpan = document.getElementById('monthlyPayment');
+        const totalPaymentsSpan = document.getElementById('totalPayments');
+        const totalInterestPaidSpan = document.getElementById('totalInterestPaid');
+        const loanSummaryChartCanvas = document.getElementById('loanSummaryChart');
+        const amortizationChartCanvas = document.getElementById('amortizationChart');
+
+        let loanSummaryChart;
+        let amortizationChart;
+
+        const formatNumber = (num) => Number(num).toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+        const calculateLoan = () => {
+            let P = parseFloat(loanAmountInput.value); // Principal loan amount
+            let annualRate = parseFloat(annualInterestRateInput.value) / 100; // Annual interest rate as decimal
+            let years = parseFloat(loanDurationInput.value); // Loan duration in years
+            let paymentPeriod = loanPaymentPeriodSelect.value;
+
+            if (isNaN(P) || isNaN(annualRate) || isNaN(years) || P <= 0 || annualRate < 0 || years <= 0) {
+                monthlyPaymentSpan.textContent = '€0';
+                totalPaymentsSpan.textContent = '€0';
+                totalInterestPaidSpan.textContent = '€0';
+                updateLoanSummaryChart([], 0, 0);
+                updateAmortizationChart([], [], [], []);
+                return;
+            }
+
+            let monthlyRate = annualRate / 12;
+            let numberOfPayments = years * 12;
+
+            let monthlyPayment;
+            if (annualRate === 0) {
+                monthlyPayment = P / numberOfPayments;
+            } else {
+                monthlyPayment = P * (monthlyRate * Math.pow(1 + monthlyRate, numberOfPayments)) / (Math.pow(1 + monthlyRate, numberOfPayments) - 1);
+            }
+
+            if (paymentPeriod === 'yearly') {
+                monthlyPayment *= 12; // If payments are yearly, the monthly payment calculated needs to be multiplied by 12
+                numberOfPayments = years; // Number of payments becomes just the years
+                let yearlyRate = annualRate; // Use annual rate for yearly calculations
+                if (annualRate === 0) {
+                    monthlyPayment = P / numberOfPayments;
+                } else {
+                    monthlyPayment = P * (yearlyRate * Math.pow(1 + yearlyRate, numberOfPayments)) / (Math.pow(1 + yearlyRate, numberOfPayments) - 1);
+                }
+            }
+
+
+            let totalPayments = monthlyPayment * numberOfPayments;
+            let totalInterestPaid = totalPayments - P;
+            if (totalInterestPaid < 0) totalInterestPaid = 0; // Ensure interest paid isn't negative
+
+            monthlyPaymentSpan.textContent = `€${formatNumber(monthlyPayment)}`;
+            totalPaymentsSpan.textContent = `€${formatNumber(totalPayments)}`;
+            totalInterestPaidSpan.textContent = `€${formatNumber(totalInterestPaid)}`;
+
+            updateLoanSummaryChart([P, totalInterestPaid]);
+
+            // Amortization Schedule Data
+            let remainingBalance = P;
+            let paymentsMade = [];
+            let interestPaidPerPeriod = [];
+            let principalPaidPerPeriod = [];
+            let balances = [];
+            let labels = [];
+
+            for (let i = 1; i <= numberOfPayments; i++) {
+                let interestThisPeriod = remainingBalance * (paymentPeriod === 'monthly' ? monthlyRate : annualRate);
+                let principalThisPeriod = monthlyPayment - interestThisPeriod;
+
+                if (remainingBalance < monthlyPayment) { // Adjust for final payment
+                    principalThisPeriod = remainingBalance;
+                    monthlyPayment = remainingBalance + interestThisPeriod;
+                }
+                
+                remainingBalance -= principalThisPeriod;
+
+                paymentsMade.push(monthlyPayment);
+                interestPaidPerPeriod.push(interestThisPeriod);
+                principalPaidPerPeriod.push(principalThisPeriod);
+                balances.push(Math.max(0, remainingBalance)); // Ensure balance doesn't go negative
+
+                if (paymentPeriod === 'monthly') {
+                    labels.push(`Month ${i}`);
+                } else {
+                    labels.push(`Year ${i}`);
+                }
+            }
+            updateAmortizationChart(labels, balances, principalPaidPerPeriod, interestPaidPerPeriod);
+        };
+
+        const updateLoanSummaryChart = (data) => {
+            const chartLabels = ['Loan Amount', 'Total Interest Paid'];
+            const chartColors = ['#4CAF50', '#FFC107'];
+
+            const filteredData = [], filteredLabels = [], filteredColors = [];
+            data.forEach((value, index) => {
+                if (value > 0) {
+                    filteredData.push(value);
+                    filteredLabels.push(chartLabels[index]);
+                    filteredColors.push(chartColors[index]);
+                }
+            });
+
+            if (loanSummaryChart) {
+                loanSummaryChart.data.labels = filteredLabels;
+                loanSummaryChart.data.datasets[0].data = filteredData;
+                loanSummaryChart.data.datasets[0].backgroundColor = filteredColors;
+                loanSummaryChart.update();
+            } else {
+                const ctx = loanSummaryChartCanvas.getContext('2d');
+                loanSummaryChart = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: filteredLabels,
+                        datasets: [{ data: filteredData, backgroundColor: filteredColors, hoverOffset: 4 }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'top' },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        if (label) label += ': ';
+                                        if (context.parsed !== null) label += `€${formatNumber(context.parsed)}`;
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        };
+
+        const updateAmortizationChart = (labels, balances, principalPaid, interestPaid) => {
+            const ctx = amortizationChartCanvas.getContext('2d');
+            if (amortizationChart) {
+                amortizationChart.data.labels = labels;
+                amortizationChart.data.datasets[0].data = balances;
+                amortizationChart.data.datasets[1].data = principalPaid;
+                amortizationChart.data.datasets[2].data = interestPaid;
+                amortizationChart.update();
+            } else {
+                amortizationChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            { label: 'Remaining Balance', data: balances, borderColor: '#4CAF50', fill: false, tension: 0.1 },
+                            { label: 'Principal Paid', data: principalPaid, borderColor: '#2196F3', fill: false, tension: 0.1 },
+                            { label: 'Interest Paid', data: interestPaid, borderColor: '#FFC107', fill: false, tension: 0.1 }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.dataset.label}: €${formatNumber(context.parsed.y)}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: { beginAtZero: true, title: { display: true, text: '€ Value' } },
+                            x: { title: { display: true, text: (loanPaymentPeriodSelect.value === 'monthly' ? 'Months' : 'Years') } }
+                        }
+                    }
+                });
+            }
+            amortizationChart.options.scales.x.title.text = (loanPaymentPeriodSelect.value === 'monthly' ? 'Months' : 'Years');
+            amortizationChart.update();
+        };
+
+        loanAmountInput.addEventListener('input', calculateLoan);
+        annualInterestRateInput.addEventListener('input', calculateLoan);
+        loanDurationInput.addEventListener('input', calculateLoan);
+        loanPaymentPeriodSelect.addEventListener('change', calculateLoan);
+
+        window.onload = calculateLoan;
+    </script>
+</body>
+</html>
