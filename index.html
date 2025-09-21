@@ -19,6 +19,14 @@
 </head>
 <body class="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-inter">
     <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-5xl">
+        <!-- Navigation -->
+        <div class="flex justify-center mb-6">
+            <div class="bg-gray-100 rounded-lg p-1">
+                <a href="index.html" class="px-4 py-2 rounded-md bg-blue-500 text-white font-medium">Investment Calculator</a>
+                <a href="loan-calculator.html" class="px-4 py-2 rounded-md text-gray-600 hover:text-gray-800 font-medium">Loan Calculator</a>
+            </div>
+        </div>
+
         <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">Interest Rate Calculator</h1>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -35,8 +43,8 @@
             <div class="flex flex-col">
                 <label for="interestPeriod" class="text-gray-700 text-sm font-medium mb-1">Interest Compounding Period</label>
                 <select id="interestPeriod" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                    <option value="yearly">Yearly</option>
-                    <option value="monthly" selected>Monthly</option>
+                    <option value="yearly" selected>Yearly</option>
+                    <option value="monthly" >Monthly</option>
                 </select>
             </div>
         </div>
@@ -44,7 +52,7 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div class="flex flex-col">
                 <label for="additionalInvestment" class="text-gray-700 text-sm font-medium mb-1">Additional Investment (€)</label>
-                <input type="number" id="additionalInvestment" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="100" min="0" />
+                <input type="number" id="additionalInvestment" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="0" min="0" />
             </div>
 
             <div class="flex flex-col">
@@ -57,7 +65,7 @@
 
             <div class="flex flex-col">
                 <label for="investmentDuration" class="text-gray-700 text-sm font-medium mb-1">Investment Duration (Years)</label>
-                <input type="number" id="investmentDuration" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="10" min="1" />
+                <input type="number" id="investmentDuration" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="1" min="1" />
             </div>
         </div>
 
@@ -102,9 +110,8 @@
                 updateChart([], 0, 0, 0);
                 return;
             }
-
             let n_compounding = interestPeriod === 'monthly' ? 12 : 1;
-            let r_per_period = Math.pow(1 + r_annual, 1 / n_compounding);
+            let r_per_period = 1 + (r_annual / n_compounding);
 
             let futureValueOfPrincipal = P * Math.pow(r_per_period, n_compounding * t);
 
@@ -114,7 +121,7 @@
             if (PMT_user > 0) {
                 if (additionalPeriod === 'monthly') {
                     if (interestPeriod === 'yearly') {
-                        PMT_effective = PMT_user;
+                        PMT_effective = PMT_user * 12;
                     }
                 }
 
@@ -122,8 +129,6 @@
                     futureValueOfPayments = PMT_effective * n_compounding * t;
                 } else if (additionalPeriod === 'yearly' && interestPeriod === 'monthly') {
                     futureValueOfPayments = futureValueAnnualContributions(PMT_effective, r_per_period - 1, t);
-                } else if (additionalPeriod === 'monthly' && interestPeriod === 'yearly') {
-                    futureValueOfPayments = calculateAnnualCompoundWithMonthlyInvestments(PMT_effective, r_per_period - 1, t);
                 } else {
                     futureValueOfPayments = PMT_effective * ((Math.pow(r_per_period, n_compounding * t) - 1) / (r_per_period - 1));
                 }
@@ -138,16 +143,6 @@
                 }
                 return fv;
             }
-
-            function calculateAnnualCompoundWithMonthlyInvestments(pmt, rate, years) {
-                let total = 0;
-                for (let i = 0; i < years; i++) {
-                    total += pmt * 12;
-                    total *= (1 + rate);
-                }
-                return total;
-            }
-
 
             let totalFutureValue = futureValueOfPrincipal + futureValueOfPayments;
             let totalInitialInvestment = P;
@@ -164,12 +159,12 @@
             let totalPortfolio = [];
             let labels = [];
 
-            let monthlyRate = Math.pow(1 + r_annual, 1 / 12);
+            let monthlyRate = 1 + (r_annual / n_compounding);
             let P_current = P;
             let totalAdditional = 0;
 
             for (let month = 0; month < t * 12; month++) {
-                P_current *= monthlyRate;
+                P_current = P_current * r_per_period;
 
                 if ((additionalPeriod === 'yearly') && (interestPeriod === 'monthly')) {
                     if ((month + 1) % 12 === 0 && month > 0) {
@@ -179,9 +174,9 @@
                     }
                 } else if ((additionalPeriod === 'monthly') && (interestPeriod === 'yearly')) {
                     if ((month + 1) % 12 === 0 && month > 0) {
-                        totalAdditional = (totalAdditional + PMT_user) * r_per_period;
+                        totalAdditional = totalAdditional * r_per_period + PMT_user;
                     } else {
-                    totalAdditional = totalAdditional + PMT_user;
+                    totalAdditional = totalAdditional * PMT_user;
                     }
                 } else if ((additionalPeriod === 'monthly') && (interestPeriod === 'monthly')) {
                     totalAdditional = totalAdditional * r_per_period + PMT_user;

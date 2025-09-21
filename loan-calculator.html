@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loan Calculator</title>
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts - Inter for consistent typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN for charting -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        canvas {
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-inter">
+    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-5xl">
+        <!-- Navigation -->
+        <div class="flex justify-center mb-6">
+            <div class="bg-gray-100 rounded-lg p-1">
+                <a href="index.html" class="px-4 py-2 rounded-md text-gray-600 hover:text-gray-800 font-medium">Investment Calculator</a>
+                <a href="loan-calculator.html" class="px-4 py-2 rounded-md bg-blue-500 text-white font-medium">Loan Calculator</a>
+            </div>
+        </div>
+
+        <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">Loan Calculator</h1>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div class="flex flex-col">
+                <label for="loanAmount" class="text-gray-700 text-sm font-medium mb-1">Loan Amount (€)</label>
+                <input type="number" id="loanAmount" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="100000" min="0" />
+            </div>
+
+            <div class="flex flex-col">
+                <label for="interestRate" class="text-gray-700 text-sm font-medium mb-1">Annual Interest Rate (%)</label>
+                <input type="number" id="interestRate" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="5" min="0" step="0.1" />
+            </div>
+
+            <div class="flex flex-col">
+                <label for="loanTerm" class="text-gray-700 text-sm font-medium mb-1">Loan Term (Years)</label>
+                <input type="number" id="loanTerm" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="30" min="1" />
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="flex flex-col">
+                <label for="paymentFrequency" class="text-gray-700 text-sm font-medium mb-1">Payment Frequency</label>
+                <select id="paymentFrequency" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    <option value="monthly" selected>Monthly</option>
+                    <option value="biweekly">Bi-weekly</option>
+                    <option value="weekly">Weekly</option>
+                </select>
+            </div>
+
+            <div class="flex flex-col">
+                <label for="downPayment" class="text-gray-700 text-sm font-medium mb-1">Down Payment (€)</label>
+                <input type="number" id="downPayment" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="20000" min="0" />
+            </div>
+
+            <div class="flex flex-col">
+                <label for="propertyTax" class="text-gray-700 text-sm font-medium mb-1">Annual Property Tax (€)</label>
+                <input type="number" id="propertyTax" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="1200" min="0" />
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div class="bg-blue-50 p-6 rounded-lg">
+                <h3 class="text-lg font-semibold text-blue-800 mb-3">Monthly Payment</h3>
+                <div class="text-2xl font-bold text-blue-600" id="monthlyPayment">€0</div>
+                <div class="text-sm text-blue-600 mt-1">Principal & Interest</div>
+            </div>
+            <div class="bg-green-50 p-6 rounded-lg">
+                <h3 class="text-lg font-semibold text-green-800 mb-3">Total Monthly Payment</h3>
+                <div class="text-2xl font-bold text-green-600" id="totalMonthlyPayment">€0</div>
+                <div class="text-sm text-green-600 mt-1">Including taxes</div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 text-center">
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <div class="text-sm text-gray-600">Total Interest Paid</div>
+                <div class="text-xl font-semibold text-gray-800" id="totalInterest">€0</div>
+            </div>
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <div class="text-sm text-gray-600">Total Amount Paid</div>
+                <div class="text-xl font-semibold text-gray-800" id="totalAmount">€0</div>
+            </div>
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <div class="text-sm text-gray-600">Loan-to-Value Ratio</div>
+                <div class="text-xl font-semibold text-gray-800" id="ltvRatio">0%</div>
+            </div>
+        </div>
+
+        <div class="h-80 w-full flex justify-center items-center mb-8">
+            <canvas id="paymentChart"></canvas>
+        </div>
+
+        <div class="h-96 w-full">
+            <canvas id="amortizationChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const loanAmountInput = document.getElementById('loanAmount');
+        const interestRateInput = document.getElementById('interestRate');
+        const loanTermInput = document.getElementById('loanTerm');
+        const paymentFrequencyInput = document.getElementById('paymentFrequency');
+        const downPaymentInput = document.getElementById('downPayment');
+        const propertyTaxInput = document.getElementById('propertyTax');
+
+        const monthlyPaymentSpan = document.getElementById('monthlyPayment');
+        const totalMonthlyPaymentSpan = document.getElementById('totalMonthlyPayment');
+        const totalInterestSpan = document.getElementById('totalInterest');
+        const totalAmountSpan = document.getElementById('totalAmount');
+        const ltvRatioSpan = document.getElementById('ltvRatio');
+
+        let paymentChart;
+        let amortizationChart;
+
+        const formatNumber = (num) => Number(num).toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+        const calculateLoan = () => {
+            let P = parseFloat(loanAmountInput.value);
+            let r_annual = parseFloat(interestRateInput.value) / 100;
+            let t = parseFloat(loanTermInput.value);
+            let downPayment = parseFloat(downPaymentInput.value);
+            let propertyTax = parseFloat(propertyTaxInput.value);
+            let frequency = paymentFrequencyInput.value;
+
+            if (isNaN(P) || isNaN(r_annual) || isNaN(t) || isNaN(downPayment) || isNaN(propertyTax) || 
+                P < 0 || r_annual < 0 || t <= 0 || downPayment < 0 || propertyTax < 0) {
+                resetDisplay();
+                return;
+            }
+
+            // Calculate effective loan amount after down payment
+            let effectiveLoanAmount = P - downPayment;
+            
+            if (effectiveLoanAmount <= 0) {
+                resetDisplay();
+                return;
+            }
+
+            // Calculate monthly interest rate
+            let r_monthly = r_annual / 12;
+            let n_payments = t * 12;
+
+            // Calculate monthly payment using loan amortization formula
+            let monthlyPayment = 0;
+            if (r_monthly > 0) {
+                monthlyPayment = effectiveLoanAmount * (r_monthly * Math.pow(1 + r_monthly, n_payments)) / 
+                               (Math.pow(1 + r_monthly, n_payments) - 1);
+            } else {
+                monthlyPayment = effectiveLoanAmount / n_payments;
+            }
+
+            // Calculate total interest and amount
+            let totalInterest = (monthlyPayment * n_payments) - effectiveLoanAmount;
+            let totalAmount = monthlyPayment * n_payments + downPayment;
+            let totalAmountWithTaxes = totalAmount + (propertyTax * t);
+
+            // Calculate monthly property tax
+            let monthlyPropertyTax = propertyTax / 12;
+            let totalMonthlyPayment = monthlyPayment + monthlyPropertyTax;
+
+            // Calculate LTV ratio
+            let ltvRatio = ((effectiveLoanAmount / P) * 100);
+
+            // Update display
+            monthlyPaymentSpan.textContent = `€${formatNumber(monthlyPayment)}`;
+            totalMonthlyPaymentSpan.textContent = `€${formatNumber(totalMonthlyPayment)}`;
+            totalInterestSpan.textContent = `€${formatNumber(totalInterest)}`;
+            totalAmountSpan.textContent = `€${formatNumber(totalAmount)}`;
+            ltvRatioSpan.textContent = `${ltvRatio.toFixed(1)}%`;
+
+            // Update charts
+            updatePaymentChart(monthlyPayment, monthlyPropertyTax, effectiveLoanAmount, totalInterest);
+            updateAmortizationChart(t, effectiveLoanAmount, r_monthly, monthlyPayment);
+        };
+
+        const resetDisplay = () => {
+            monthlyPaymentSpan.textContent = '€0';
+            totalMonthlyPaymentSpan.textContent = '€0';
+            totalInterestSpan.textContent = '€0';
+            totalAmountSpan.textContent = '€0';
+            ltvRatioSpan.textContent = '0%';
+            updatePaymentChart(0, 0, 0, 0);
+            updateAmortizationChart(0, 0, 0, 0);
+        };
+
+        const updatePaymentChart = (principalInterest, propertyTax, loanAmount, totalInterest) => {
+            const ctx = document.getElementById('paymentChart').getContext('2d');
+            const data = [principalInterest, propertyTax, totalInterest];
+            const labels = ['Principal & Interest', 'Property Tax', 'Total Interest'];
+            const colors = ['#4CAF50', '#2196F3', '#FFC107'];
+
+            if (paymentChart) {
+                paymentChart.data.labels = labels;
+                paymentChart.data.datasets[0].data = data;
+                paymentChart.update();
+            } else {
+                paymentChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: data,
+                            backgroundColor: colors,
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'top' },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        if (label) label += ': ';
+                                        if (context.parsed !== null) label += `€${formatNumber(context.parsed)}`;
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        };
+
+        const updateAmortizationChart = (years, loanAmount, monthlyRate, monthlyPayment) => {
+            const ctx = document.getElementById('amortizationChart').getContext('2d');
+            
+            if (years === 0 || loanAmount === 0) {
+                if (amortizationChart) {
+                    amortizationChart.data.labels = [];
+                    amortizationChart.data.datasets[0].data = [];
+                    amortizationChart.data.datasets[1].data = [];
+                    amortizationChart.update();
+                }
+                return;
+            }
+
+            let labels = [];
+            let principalSeries = [];
+            let interestSeries = [];
+            let remainingBalance = loanAmount;
+
+            for (let year = 1; year <= years; year++) {
+                let yearlyPrincipal = 0;
+                let yearlyInterest = 0;
+
+                for (let month = 1; month <= 12; month++) {
+                    let interestPayment = remainingBalance * monthlyRate;
+                    let principalPayment = monthlyPayment - interestPayment;
+                    
+                    yearlyPrincipal += principalPayment;
+                    yearlyInterest += interestPayment;
+                    remainingBalance -= principalPayment;
+                }
+
+                labels.push(`Year ${year}`);
+                principalSeries.push(yearlyPrincipal);
+                interestSeries.push(yearlyInterest);
+            }
+
+            if (amortizationChart) {
+                amortizationChart.data.labels = labels;
+                amortizationChart.data.datasets[0].data = principalSeries;
+                amortizationChart.data.datasets[1].data = interestSeries;
+                amortizationChart.update();
+            } else {
+                amortizationChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Principal Paid',
+                                data: principalSeries,
+                                backgroundColor: '#4CAF50',
+                                borderColor: '#4CAF50',
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'Interest Paid',
+                                data: interestSeries,
+                                backgroundColor: '#FFC107',
+                                borderColor: '#FFC107',
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.dataset.label}: €${formatNumber(context.parsed.y)}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: { 
+                                beginAtZero: true, 
+                                title: { display: true, text: '€ Amount' },
+                                stacked: true
+                            },
+                            x: { 
+                                title: { display: true, text: 'Years' },
+                                stacked: true
+                            }
+                        }
+                    }
+                });
+            }
+        };
+
+        // Event listeners
+        loanAmountInput.addEventListener('input', calculateLoan);
+        interestRateInput.addEventListener('input', calculateLoan);
+        loanTermInput.addEventListener('input', calculateLoan);
+        paymentFrequencyInput.addEventListener('change', calculateLoan);
+        downPaymentInput.addEventListener('input', calculateLoan);
+        propertyTaxInput.addEventListener('input', calculateLoan);
+
+        // Initialize calculation on page load
+        window.onload = calculateLoan;
+    </script>
+</body>
+</html> 
