@@ -31,7 +31,7 @@
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <div class="flex flex-col">
-                <label for="loanAmount" class="text-gray-700 text-sm font-medium mb-1">Loan Amount (€)</label>
+                <label for="loanAmount" class="text-gray-700 text-sm font-medium mb-1">Needed Amount (€)</label>
                 <input type="number" id="loanAmount" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="100000" min="0" />
             </div>
 
@@ -51,8 +51,8 @@
                 <label for="paymentFrequency" class="text-gray-700 text-sm font-medium mb-1">Payment Frequency</label>
                 <select id="paymentFrequency" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
                     <option value="monthly" selected>Monthly</option>
-                    <option value="biweekly">Bi-weekly</option>
-                    <option value="weekly">Weekly</option>
+                    <!-- <option value="biweekly">Bi-weekly</option>
+                    <option value="weekly">Weekly</option> -->
                 </select>
             </div>
 
@@ -62,7 +62,7 @@
             </div>
 
             <div class="flex flex-col">
-                <label for="propertyTax" class="text-gray-700 text-sm font-medium mb-1">Annual Property Tax (€)</label>
+                <label for="propertyTax" class="text-gray-700 text-sm font-medium mb-1">Annual Insurance (€)</label>
                 <input type="number" id="propertyTax" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="1200" min="0" />
             </div>
         </div>
@@ -192,15 +192,20 @@
             updateAmortizationChart(0, 0, 0, 0);
         };
 
-        const updatePaymentChart = (principalInterest, propertyTax, loanAmount, totalInterest) => {
+        const updatePaymentChart = (monthlyPayment, monthlyPropertyTax, effectiveLoanAmount, totalInterest) => {
             const ctx = document.getElementById('paymentChart').getContext('2d');
-            const data = [principalInterest, propertyTax, totalInterest];
-            const labels = ['Principal & Interest', 'Property Tax', 'Total Interest'];
-            const colors = ['#4CAF50', '#2196F3', '#FFC107'];
+            // Calculate total principal paid over the loan term
+            const totalPrincipal = effectiveLoanAmount;
+            const totalInsurance = monthlyPropertyTax * 12 * loanTermInput.value;
+            // Chart data: Principal, Interest, Insurance
+            const data = [totalPrincipal, totalInterest, totalInsurance];
+            const labels = ['Principal', 'Interest', 'Insurance'];
+            const colors = ['#4CAF50', '#FFC107', '#2196F3'];
 
             if (paymentChart) {
                 paymentChart.data.labels = labels;
                 paymentChart.data.datasets[0].data = data;
+                paymentChart.data.datasets[0].backgroundColor = colors;
                 paymentChart.update();
             } else {
                 paymentChart = new Chart(ctx, {
@@ -338,4 +343,4 @@
         window.onload = calculateLoan;
     </script>
 </body>
-</html> 
+</html>
