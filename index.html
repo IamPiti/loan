@@ -32,7 +32,7 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <div class="flex flex-col">
                 <label for="initialInvestment" class="text-gray-700 text-sm font-medium mb-1">Initial Investment (€)</label>
-                <input type="number" id="initialInvestment" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="0" min="0" />
+                <input type="number" id="initialInvestment" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="10000" min="0" />
             </div>
 
             <div class="flex flex-col">
@@ -43,8 +43,8 @@
             <div class="flex flex-col">
                 <label for="interestPeriod" class="text-gray-700 text-sm font-medium mb-1">Interest Compounding Period</label>
                 <select id="interestPeriod" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                    <option value="yearly" selected>Yearly</option>
-                    <option value="monthly" >Monthly</option>
+                    <option value="yearly" >Yearly</option>
+                    <option value="monthly" selected>Monthly</option>
                 </select>
             </div>
         </div>
